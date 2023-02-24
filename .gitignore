@@ -1,0 +1,15 @@
+# RStudio files that don't need to be tracked.
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Don't put massive data under version control
+data/Hourly/*txt
+data/Minutes/*.txt
+
+# Ignore large data files
+*.Rda
+*.Rds
+*.RData
