@@ -1,3 +1,5 @@
+# Functions to read the minute-by-minute wind and temperature data.
+
 read_minute_data <- function(file_name) {
   col_names <- c("site", "year", "month", "day", "hour", "minute", "wind_dir", "wind_spd", "wind_stead", "p", "t_2m", "t_10m", "t_top", "rh", "precip")
   
