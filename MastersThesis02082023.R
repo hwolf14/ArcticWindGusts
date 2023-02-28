@@ -498,3 +498,11 @@ ggplot(newest_combined_cc, aes(x=t_difference, y=gust_time)) +
   scale_fill_viridis_c(option = "B") +
   xlim(-2,2) +
   theme_bw()
+
+Richardson_combined_cc <- mutate(newest_combined_cc, RichardsonBulk = ((9.81/t_2m)*(t_difference)*(8))/(wind_spd^2))
+
+ggplot(Richardson_combined_cc, aes(x=RichardsonBulk, y=gust_time)) +
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(-1,1) +
+  theme_bw()
