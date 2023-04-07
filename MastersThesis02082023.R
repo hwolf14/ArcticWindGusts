@@ -506,3 +506,26 @@ ggplot(Richardson_combined_cc, aes(x=RichardsonBulk, y=gust_time)) +
   scale_fill_viridis_c(option = "B") +
   xlim(-1,1) +
   theme_bw()
+
+# use hydrostatic equation to find potential temperature
+t_average_cc <- mutate(Richardson_combined_cc, avg_temp_K = ((t_2m+t_10m)/2)+273.15)
+pressurechange_cc <- mutate(t_average_cc, DeltaP = (-9.81*(p/(8.314*avg_temp_K))*8))
+rm(t_average_cc)
+p10_cc <- mutate(pressurechange_cc, p_10m = (DeltaP+p))
+rm(pressurechange_cc)
+theta2m_cc <- mutate(p10_cc, PotTemp_2m = (t_2m*(1000/p)^0.286))
+rm(p10_cc)
+theta10m_cc <- mutate(theta2m_cc, PotTemp_10m = (t_10m*(1000/p_10m)^0.286))
+rm(theta2m_cc)
+deltatheta_cc <- mutate(theta10m_cc, DeltaTheta = PotTemp_10m-PotTemp_2m)
+rm(theta10m_cc)
+Richardson_combined_cc_new <- mutate(deltatheta_cc, RichardsonBulkPotential = ((9.81/t_2m)*(DeltaTheta)*(8))/(wind_spd^2))
+
+ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=gust_time)) +
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(-1,1) +
+  theme_bw()
+ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=gust_time)) +
+  xlim(-1,1) +
+  geom_point(alpha = 0.1, na.rm = TRUE)
