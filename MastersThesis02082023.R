@@ -88,6 +88,7 @@ precis(mgusty1)
 
 combined_cc_1 <- combined_cc %>% mutate(has_gusts = gust_time > 0)
 
+#failed zero-inflated model below
 
 gusty_zif_model <- 
   "data{
@@ -125,16 +126,16 @@ model{
 }
 "
 
-stan_data <- list(N = nrow(combined_cc),
-                  t_2m = combined_cc$t_2m,
-                  gust_time = as.integer(combined_cc$gust_time))
+#stan_data <- list(N = nrow(combined_cc),
+#                  t_2m = combined_cc$t_2m,
+#                  gust_time = as.integer(combined_cc$gust_time))
 
-stan_file <- write_stan_file(gusty_zif_model)
-new_model <- cmdstan_model(stan_file)
-new_fit <- new_model$sample(data = stan_data, chains = 4)
+#stan_file <- write_stan_file(gusty_zif_model)
+#new_model <- cmdstan_model(stan_file)
+#new_fit <- new_model$sample(data = stan_data, chains = 4)
 
-new_model_draws <- tidy_draws(new_fit)
-new_model_pred <- linpred_draws(new_fit, list(N = nrows(pred_dat)))
+#new_model_draws <- tidy_draws(new_fit)
+#new_model_pred <- linpred_draws(new_fit, list(N = nrows(pred_dat)))
 
 combined_cc2 <- combined %>% drop_na(gust_time, wind_spd)
 
@@ -563,6 +564,18 @@ updated_new_combined_cc <- updated_new_combined_cc %>%
 
 rm(minute_data)
 gc()
+
+mgusty1_updated <- quap(
+  alist(
+    gust_time ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * t_2m + b2 * t_2m^2,
+    a ~ dnorm(5, 5),
+    b1 ~ dnorm(0, 1),
+    b2 ~ dnorm(0, 1),
+    sigma ~ dexp(0.05)
+  ) , data=updated_combined_cc)
+
+#opened a new script "gust_time_updates_05172023" for subsequent recalculations
 
 # create predictive multiple regression model for 3 parameters:Bulk Richardson, t_2m, hourly mean wind spd
 Predictive3Variables <- ulam(
