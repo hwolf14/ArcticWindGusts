@@ -357,3 +357,144 @@ ggplot(dat_slim_2_df, aes(wind_spd, gust_time)) +
 lines( wind_spd.seq , mu.mean )
 shade( mu.PI , wind_spd.seq )
 shade( height.PI , wind_spd.seq )
+plot4.1 <- ggplot(dat_slim_2_df, aes(wind_spd, gust_time)) +
+  geom_smooth()
+lines( wind_spd.seq , mu.mean )
+shade( mu.PI , wind_spd.seq )
+shade( height.PI , wind_spd.seq )
+
+plot4.1 + coord_cartesian(xlim = c(0, 20))
+
+newest_combined_cc <- new_combined_cc
+print(newest_combined_cc)
+
+newest_combined_cc <- mutate(newest_combined_cc, t_difference = t_10m-t_2m)
+
+mgusty5 <- quap(
+  alist(
+    gust_time ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * t_2m + b2 * t_2m^2,
+    a ~ dnorm(5, 5),
+    b1 ~ dnorm(0, 1),
+    b2 ~ dnorm(0, 1),
+    sigma ~ dexp(0.05)
+  ) , data=newest_combined_cc)
+
+t_difference.seq <- seq( from=-49.0 , to=22.8 , length.out=30 )
+pred_dat <- list( t_difference = t_difference.seq )
+mu <- link( mgusty5 , data=newest_combined_cc )
+mu.mean <- apply( mu , 2 , mean )
+mu.PI <- apply( mu , 2 , PI , prob=0.90 )
+rm(mu) # delete the huge matrix mu now that we're done with it.
+gc() # garbage-collect to free R's unused memory
+
+sim.gust_time <- sim( mgusty5 , data=newest_combined_cc )
+gust_time.PI <- apply( sim.gust_time , 2 , PI , prob=0.90 )
+rm(sim.gust_time)
+gc()
+
+ggplot(newest_combined_cc, aes(t_difference, gust_time)) +
+  geom_smooth()
+
+mgusty6 <- ulam(
+  alist(
+    gust_time ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * t_2m + b2 * t_2m^2,
+    a ~ dnorm(5, 5),
+    b1 ~ dnorm(0, 1),
+    b2 ~ dnorm(0, 1),
+    sigma ~ dexp(0.05)
+  ) ,
+  data=dat_slim , chains=4 , cores=4 , iter = 1000 )
+
+t_difference.seq <- seq( from=-49.0 , to=22.8 , length.out=30 )
+pred_dat <- list( t_difference = t_difference.seq )
+mu <- link( mgusty6 , data=newest_combined_cc )
+mu.mean <- apply( mu , 2 , mean )
+mu.PI <- apply( mu , 2 , PI , prob=0.90 )
+rm(mu) # delete the huge matrix mu now that we're done with it.
+gc() # garbage-collect to free R's unused memory
+
+sim.gust_time <- sim( mgusty6 , data=newest_combined_cc )
+gust_time.PI <- apply( sim.gust_time , 2 , PI , prob=0.90 )
+rm(sim.gust_time)
+gc()
+
+newest_combined_cc_df <- as_tibble(newest_combined_cc)
+
+plot( gust_time ~ t_difference , newest_combined_cc_df , col=col.alpha(rangi2,0.1))
+lines( t_difference.seq , mu.mean )
+shade( mu.PI , t_difference.seq )
+
+ggplot(newest_combined_cc_df, aes(t_difference, gust_time)) +
+  geom_smooth() + xlim(-2, 2) + ylim (0, 61)
+
+library(brms)
+
+mgusty3.1prior <- c(
+  set_prior("normal(5, 5)", class = "Intercept", lb = 0),
+  set_prior("normal(0, 1)", class = "b", coef = "t_2m"),
+  set_prior("exponential(0.05)", class="sigma"))
+mgusty3.1_fit_formula <- bf(gust_time ~ t_2m + I(t_2m^2))
+b3.1 <-
+  brm(mgusty3.1_fit_formula,
+      data = new_combined_cc,
+      family = gaussian,
+      prior = mgusty3.1prior,
+      chains = 4, cores = 4, backend = "cmdstanr" )
+
+mgusty4.1prior <- c(
+  set_prior("normal(5, 5)", class = "Intercept", lb = 0),
+  set_prior("normal(0, 1)", class = "b", coef = "wind_spd"),
+  set_prior("exponential(0.05)", class="sigma"))
+mgusty4.1_fit_formula <- bf(gust_time ~ wind_spd + I(wind_spd^2))
+b4.1 <-
+  brm(mgusty4.1_fit_formula,
+      data = new_combined_cc,
+      family = gaussian,
+      prior = mgusty4.1prior,
+      chains = 4, cores = 4, backend = "cmdstanr" )
+
+mgusty5.1prior <- c(
+  set_prior("normal(5, 5)", class = "Intercept", lb = 0),
+  set_prior("normal(0, 1)", class = "b", coef = "t_difference"),
+  set_prior("exponential(0.05)", class="sigma"))
+mgusty5.1_fit_formula <- bf(gust_time ~ t_difference + I(t_difference^2))
+b5.1 <-
+  brm(mgusty5.1_fit_formula,
+      data = newest_combined_cc_df,
+      family = gaussian,
+      prior = mgusty5.1prior,
+      chains = 4, cores = 4, backend = "cmdstanr" )
+
+ggplot(new_combined_cc, aes(x=t_2m, y=GustTime)) +
+  geom_point(size=3) +
+  geom_ribbon(data=hill_bayes_ribbons, aes(ymin=pred_lower, ymax=pred_upper), 
+              alpha=0.2, fill=colourcodes[3]) +
+  geom_ribbon(data=hill_bayes_ribbons, aes(ymin=fitted_lower, ymax=fitted_upper), 
+              alpha=0.5, fill=colourcodes[3]) +
+  geom_line(data=hill_bayes_ribbons, aes(y=Estimate), colour=colourcodes[3], 
+            size=1)
+
+ggplot(data = newest_combined_cc, aes (x = t_difference)) + geom_density() + xlim(-2, 2)
+
+ggplot(newest_combined_cc, aes(x=t_difference, y=gust_time)) + 
+  geom_bin2d(bins = 100, mapping = aes(fill = log(..ndensity..))) +
+  theme_bw()
+
+ggplot(newest_combined_cc, aes(x=t_difference, y=gust_time)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(-2,2) +
+  theme_bw()
+
+newest_combined_cc <- new_combined_cc
+print(newest_combined_cc)
+
+Richardson_combined_cc <- mutate(newest_combined_cc, RichardsonBulk = ((9.81/t_2m)*(t_difference)*(8))/(wind_spd^2))
+
+ggplot(Richardson_combined_cc, aes(x=RichardsonBulk, y=gust_time)) +
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(-1,1) +
+  theme_bw()

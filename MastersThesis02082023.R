@@ -222,10 +222,10 @@ new_combined_cc <- new_combined_cc %>%
 rm(minute_data)
 gc()
 
-ggplot(new_combined_cc, aes(x = wind_spd, y = new_gust_time)) + geom_smooth()
-ggplot(new_combined_cc, aes(x = wind_spd, y = wind_sd)) + geom_smooth()
-ggplot(new_combined_cc, aes(x = wind_spd, y = wind_max)) + geom_smooth()
-ggplot(new_combined_cc, aes(x = wind_spd, y = wind_min)) + geom_smooth()
+ggplot(new_combined_cc, aes(x = wind_spd, y = new_gust_time.x)) + geom_smooth()
+ggplot(new_combined_cc, aes(x = wind_spd, y = wind_sd.x)) + geom_smooth()
+ggplot(new_combined_cc, aes(x = wind_spd, y = wind_max.x)) + geom_smooth()
+ggplot(new_combined_cc, aes(x = wind_spd, y = wind_min.x)) + geom_smooth()
 
 new_combined_cc %>% 
   select(wind_spd, wind_max, wind_min, wind_sd, gust_time) %>%
@@ -529,3 +529,44 @@ ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=gust_time)) 
 ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=gust_time)) +
   xlim(-1,1) +
   geom_point(alpha = 0.1, na.rm = TRUE)
+
+#update gust_time parameter so it includes only points 50% above mean wind spd
+
+updated_minute_summary <- minute_data %>% 
+  mutate(wind_spd = ifelse(wind_spd < 0, NA, wind_spd)) %>%
+  group_by(site, year, month, day, hour) %>% 
+  summarize(wind_mean = mean(wind_spd), 
+            gust_time = sum(wind_spd >= 10 & wind_spd >= (wind_mean + 0.5*wind_mean)), 
+            wind_sd = sd(wind_spd), 
+            wind_max = max(wind_spd), wind_min = min(wind_spd), 
+            wind_med = median(wind_spd), nrow = n(), 
+            na_ct = sum(is.na(wind_spd)),
+            .groups = "drop")
+
+updated_clean_minute_summary <- updated_minute_summary %>% filter(nrow == 60, na_ct == 0) %>% 
+  mutate(date = make_datetime(year, month, day, hour))
+
+full_dates <- updated_clean_minute_summary$date
+
+updated_combined <- read_rds("data/combined_data.Rds")
+
+updated_combined_cc <- updated_combined %>% drop_na(gust_time, t_2m)
+
+updated_new_combined_cc <- updated_combined_cc %>% 
+  mutate(date = make_datetime(year, month, day, hour)) %>% 
+  filter(date %in% full_dates)
+
+updated_new_combined_cc <- updated_new_combined_cc %>% 
+  left_join(select(clean_minute_summary, site, date, new_gust_time = gust_time, 
+                   wind_mean, wind_sd, wind_max, wind_min, wind_med), 
+            by = c("site", "date"))
+
+rm(minute_data)
+gc()
+
+# create predictive multiple regression model for 3 parameters:Bulk Richardson, t_2m, hourly mean wind spd
+Predictive3Variables <- ulam(
+  alist(
+    gust_time ~
+  )
+)
