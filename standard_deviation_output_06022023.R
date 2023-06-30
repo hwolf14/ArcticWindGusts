@@ -1,7 +1,17 @@
 #instead of using gust_time, use the hourly standard deviation of the wind speed
 
+library(rlang)
 library(tidyverse)
 library(lubridate)
+library(tidybayes)
+library(tidybayes.rethinking)
+library(bayesplot)
+library(devtools)
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(rethinking)
+library(ggpubr)
 
 minute_summary <- minute_data %>% 
   mutate(wind_spd = ifelse(wind_spd < 0, NA, wind_spd)) %>%
@@ -75,7 +85,7 @@ mgusty1plot_updated + coord_cartesian(xlim = c(-30, 10))
 
 gam_updated <- gam((wind_sd.x) ~ s(t_2m + t_2m^2), data = new_combined_cc)
 
-plot(gam, add = TRUE, ylim = c(0,10), ylab = "Hourly Standard Deviation", xlab = "temperature")
+plot(gam_updated, add = TRUE, ylim = c(0,10), ylab = "Hourly Standard Deviation", xlab = "temperature")
 points(wind_sd.x ~ t_2m, data = slice_sample(new_combined_cc, n = 2000), col = alpha(rangi2, 0.5))
 lines(t_2m.seq, mu.mean)
 shade(mu.PI, t_2m.seq)
@@ -138,7 +148,7 @@ lines( wind_spd.seq , mu.mean )
 shade( mu.PI , wind_spd.seq )
 shade( height.PI , wind_spd.seq )
 
-mgusty2plot_updated + coord_cartesian(xlim = c(0, 20), ylim=c(0,5))
+mgusty2plot_updated + coord_cartesian(xlim = c(0, 20))
 
 #Build mgusty3
 
@@ -152,9 +162,9 @@ mgusty3_updated <- ulam(
   alist(
     wind_sd ~ dnorm( mu , sigma ) ,
     mu <- a + b1 * t_2m + b2 * t_2m^2,
-    a ~ dnorm(5, 5),
-    b1 ~ dnorm(0, 0.3),
-    b2 ~ dnorm(0, 0.3),
+    a ~ dnorm(0.5, 2),
+    b1 ~ dnorm(0, 0.1),
+    b2 ~ dnorm(0, 0.1),
     sigma ~ dexp(1)
   ) ,
   data=dat_slim_updated , chains=1 )
@@ -163,9 +173,9 @@ mgusty3.1_updated <- ulam(
   alist(
     wind_sd ~ dnorm( mu , sigma ) ,
     mu <- a + b1 * t_2m + b2 * t_2m^2,
-    a ~ dnorm(0, 1),
-    b1 ~ dnorm(0, 0.3),
-    b2 ~ dnorm(0, 0.3),
+    a ~ dnorm(0.5, 2),
+    b1 ~ dnorm(0, 0.1),
+    b2 ~ dnorm(0, 0.1),
     sigma ~ dexp(1)
   ) ,
   data=dat_slim_updated , chains=4 , cores=4 , iter = 1000 )
@@ -297,7 +307,7 @@ newest_combined_cc <- mutate(newest_combined_cc, t_difference = t_10m-t_2m)
 
 mgusty5_updated <- quap(
   alist(
-    wind_sd ~ dnorm( mu , sigma ) ,
+    wind_sd.x ~ dnorm( mu , sigma ) ,
     mu <- a + b1 * t_2m + b2 * t_2m^2,
     a ~ dnorm(5, 5),
     b1 ~ dnorm(0, 1),
@@ -325,11 +335,11 @@ ggplot(newest_combined_cc, aes(t_difference, wind_sd)) +
 
 ggplot(data = newest_combined_cc, aes (x = t_difference)) + geom_density() + xlim(-2, 2)
 
-ggplot(newest_combined_cc, aes(x=t_difference, y=wind_sd)) + 
+ggplot(newest_combined_cc, aes(x=t_difference, y=wind_sd.x)) + 
   geom_bin2d(bins = 100, mapping = aes(fill = log(..ndensity..))) +
   theme_bw()
 
-ggplot(newest_combined_cc, aes(x=t_difference, y=wind_sd)) + 
+ggplot(newest_combined_cc, aes(x=t_difference, y=wind_sd.x)) + 
   geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
   scale_fill_viridis_c(option = "B") +
   xlim(-2,2) +
@@ -366,7 +376,7 @@ gc()
 
 newest_combined_cc_df <- as_tibble(newest_combined_cc)
 
-plot( wind_sd ~ t_difference , newest_combined_cc_df , col=col.alpha(rangi2,0.1))
+plot( wind_sd.x ~ t_difference , newest_combined_cc_df , col=col.alpha(rangi2,0.1))
 lines( t_difference.seq , mu.mean )
 shade( mu.PI , t_difference.seq )
 
@@ -430,7 +440,7 @@ rm(theta10m_cc)
 Richardson_combined_cc_new <- mutate(deltatheta_cc, RichardsonBulkPotential = ((9.81/t_2m)*(DeltaTheta)*(8))/(wind_spd^2))
 
 # Plot bulk Richardson number
-ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=wind_sd)) +
+ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=wind_sd.x)) +
   geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
   scale_fill_viridis_c(option = "B") +
   xlim(-1,1) +
@@ -441,3 +451,94 @@ ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=wind_sd)) +
   xlim(-1,1) +
   geom_point(alpha = 0.1, na.rm = TRUE)
 
+# Filter out obvious errors in raw data
+new_combined_cc <- new_combined_cc[-c(36543, 36544, 42809, 42810, 42954:42976, 47563:47582, 137149:137220), ]
+# filter out anything with sd above 5 and any hour with wind max > 35 m/s
+new_combined_cc <- new_combined_cc[ new_combined_cc$wind_sd.x <= 5 & new_combined_cc$wind_max.x <= 35, ]
+new_combined_cc2 <- new_combined_cc2[ new_combined_cc2$wind_sd <= 5 & new_combined_cc2$wind_max <= 35, ]
+
+#try a multiple regression model
+
+dat_slim_MR <- list(
+  wind_sd = new_combined_cc$wind_sd.x,
+  t_2m = new_combined_cc$t_2m,
+  wind_spd = new_combined_cc$wind_spd
+)
+str(dat_slim_MR)
+dat_slim_MR_df <- as_tibble(dat_slim_MR)
+dat_slim_MR_df <- dat_slim_MR_df %>% drop_na(wind_spd)
+
+mgustyMR_quap <- quap(
+  alist(
+    wind_sd ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * wind_spd + b2 * t_2m,
+    a ~ dnorm(0.5, 0.5),
+    b1 ~ dnorm(0, 0.02),
+    b2 ~ dnorm(0, 0.05),
+    sigma ~ dexp(1)
+  ) , data=dat_slim_MR_df )
+
+mgustyMR <- ulam(
+  alist(
+    wind_sd ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * wind_spd + b2 * t_2m,
+    a ~ dnorm(0.5, 0.5),
+    b1 ~ dnorm(0, 0.02),
+    b2 ~ dnorm(0, 0.05),
+    sigma ~ dexp(1)
+  ) , data=dat_slim_MR_df, chains =1 )
+
+#HOLY SHIT IT WORKS. Let's do 4 chains!!!
+
+mgustyMR_4chains <- ulam(
+  alist(
+    wind_sd ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * wind_spd + b2 * t_2m,
+    a ~ dnorm(0.5, 0.5),
+    b1 ~ dnorm(0, 0.02),
+    b2 ~ dnorm(0, 0.05),
+    sigma ~ dexp(1)
+  ) , data=dat_slim_MR_df, chains =4, cores=4, iter=1000 )
+
+postmgustyMR4chains <- extract.samples( mgustyMR_4chains ,  clean = FALSE)
+str(postmgustyMR4chains)
+
+#this isn't for the model I've made in ulam... it's A model but..
+my_mod <- lm(wind_sd ~ wind_spd + t_2m, data = dat_slim_MR_df)
+plot(x=predict(my_mod), y=dat_slim_MR_df$wind_sd,
+     xlab='Predicted Values',
+     ylab='Actual Values',
+     xlim = c(0,2),
+     ylim = c(0,5),
+     main='Predicted vs. Actual Values')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+cor(x=predict(my_mod), y=dat_slim_MR_df$wind_sd)
+
+##trying to get ulam model plotted
+mgustyMR_4chains %>%
+  spread_draws(r_condition[])
+
+mgustyMR_draws <- linpred_draws(
+  mgustyMR_4chains,
+  dat_slim_MR_df,
+  value = ".linpred",
+  post = NULL,
+  ndraws = 3,
+  dpar = FALSE)
+
+mgustyMR_predicteddraws <- predicted_draws(
+  mgustyMR_4chains,
+  dat_slim_MR_df,
+  value = ".prediction",
+  ndraws = 5)
+
+plot (wind_sd ~ .prediction , mgustyMR_predicteddraws , col=col.alpha(rangi2,0.5),
+      xlab='Predicted Values',
+      ylab='Actual Values',
+      main='Predicted vs. ACtual wind_sd values for Bayesian Model')
+
+cor(x=mgustyMR_predicteddraws$.prediction, y=mgustyMR_predicteddraws$wind_sd)
