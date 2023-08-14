@@ -12,6 +12,7 @@ library(dplyr)
 library(ggplot2)
 library(rethinking)
 library(ggpubr)
+library(randomForest)
 
 minute_summary <- minute_data %>% 
   mutate(wind_spd = ifelse(wind_spd < 0, NA, wind_spd)) %>%
@@ -173,9 +174,9 @@ mgusty3.1_updated <- ulam(
   alist(
     wind_sd ~ dnorm( mu , sigma ) ,
     mu <- a + b1 * t_2m + b2 * t_2m^2,
-    a ~ dnorm(0.5, 2),
-    b1 ~ dnorm(0, 0.1),
-    b2 ~ dnorm(0, 0.1),
+    a ~ dnorm(1, 1),
+    b1 ~ dnorm(0, 0.3),
+    b2 ~ dnorm(0, 0.3),
     sigma ~ dexp(1)
   ) ,
   data=dat_slim_updated , chains=4 , cores=4 , iter = 1000 )
@@ -437,10 +438,10 @@ theta10m_cc <- mutate(theta2m_cc, PotTemp_10m = (t_10m*(1000/p_10m)^0.286))
 rm(theta2m_cc)
 deltatheta_cc <- mutate(theta10m_cc, DeltaTheta = PotTemp_10m-PotTemp_2m)
 rm(theta10m_cc)
-Richardson_combined_cc_new <- mutate(deltatheta_cc, RichardsonBulkPotential = ((9.81/t_2m)*(DeltaTheta)*(8))/(wind_spd^2))
+Richardson_combined_cc_new <- mutate(deltatheta_cc, BulkRichardsonNumber = ((9.81/t_2m)*(DeltaTheta)*(8))/(wind_spd^2))
 
 # Plot bulk Richardson number
-ggplot(Richardson_combined_cc_new, aes(x=RichardsonBulkPotential, y=wind_sd.x)) +
+ggplot(Richardson_combined_cc_new, aes(x=BulkRichardsonNumber, y=wind_sd.x)) +
   geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
   scale_fill_viridis_c(option = "B") +
   xlim(-1,1) +
@@ -504,8 +505,8 @@ postmgustyMR4chains <- extract.samples( mgustyMR_4chains ,  clean = FALSE)
 str(postmgustyMR4chains)
 
 #this isn't for the model I've made in ulam... it's A model but..
-my_mod <- lm(wind_sd ~ wind_spd + t_2m, data = dat_slim_MR_df)
-plot(x=predict(my_mod), y=dat_slim_MR_df$wind_sd,
+linear_model <- lm(wind_sd ~ wind_spd + t_2m, data = dat_slim_MR_df)
+plot(x=predict(linear_model), y=dat_slim_MR_df$wind_sd,
      xlab='Predicted Values',
      ylab='Actual Values',
      xlim = c(0,2),
@@ -539,6 +540,96 @@ mgustyMR_predicteddraws <- predicted_draws(
 plot (wind_sd ~ .prediction , mgustyMR_predicteddraws , col=col.alpha(rangi2,0.5),
       xlab='Predicted Values',
       ylab='Actual Values',
-      main='Predicted vs. ACtual wind_sd values for Bayesian Model')
+      main='Predicted vs. Actual wind_sd values for Bayesian Model')
 
 cor(x=mgustyMR_predicteddraws$.prediction, y=mgustyMR_predicteddraws$wind_sd)
+
+plot (wind_sd.x ~ month , new_combined_cc, col=col.alpha(rangi2,0.5),
+      xlab='Month',
+      ylab='Wind SD',
+      ylim=c(3,5),
+      main='Wind Gusts by Month')
+
+plot (wind_sd.x ~ wind_mean.x , new_combined_cc, col=col.alpha(rangi2,0.5),
+      xlab='Mean Wind Speed (m/s)',
+      ylab='Wind SD',
+      ylim=c(3,5),
+      main='Wind Gusts by Mean Wind Speed')
+
+plot (wind_sd.x ~ year , new_combined_cc, col=col.alpha(rangi2,0.5),
+      xlab='Year',
+      ylab='Wind SD',
+      main='Wind Gusts by Year')
+
+new_combined_cc_df <- as_tibble(new_combined_cc)
+
+ggplot(new_combined_cc_df, aes(year, wind_sd.x)) +
+  geom_smooth()
+
+ggplot(new_combined_cc_df, aes(month, wind_sd.x)) +
+  geom_smooth()
+
+#Improving linear model... or attempting to
+
+Richardson_dat_slim_MR <- list(
+  wind_sd = Richardson_combined_cc$wind_sd.x,
+  t_2m = Richardson_combined_cc$t_2m,
+  wind_spd = Richardson_combined_cc$wind_spd,
+  BulkRichardsonNumber = Richardson_combined_cc$RichardsonBulk
+)
+str(Richardson_dat_slim_MR)
+Richardson_dat_slim_MR_df <- as_tibble(Richardson_dat_slim_MR)
+Richardson_dat_slim_MR_df <- Richardson_dat_slim_MR_df %>% drop_na(wind_spd)
+Richardson_dat_slim_MR_df <- Richardson_dat_slim_MR_df[!is.infinite(rowSums(Richardson_dat_slim_MR_df)),]
+Richardson_dat_slim_MR_df_cc <- Richardson_dat_slim_MR_df[complete.cases(Richardson_dat_slim_MR_df), ]
+
+linear_model_2 <- lm(wind_sd ~ wind_spd * wind_spd^2 * t_2m * t_2m^2 * BulkRichardsonNumber * BulkRichardsonNumber^2, data = Richardson_dat_slim_MR_df_cc)
+plot(x=predict(linear_model_2), y=Richardson_dat_slim_MR_df_cc$wind_sd,
+     xlab='Predicted Values',
+     ylab='Actual Values',
+     xlim = c(0,2),
+     ylim = c(0,5),
+     main='Predicted vs. Actual Values')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+cor(x=predict(linear_model_2), y=Richardson_dat_slim_MR_df_cc$wind_sd)
+
+#try improving ulam model to see what adding squared terms does
+
+mgustyMR_test <- ulam(
+  alist(
+    wind_sd ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * wind_spd + b2 * t_2m + b3 * BulkRichardsonNumber,
+    a ~ dnorm(0.5, 0.5),
+    b1 ~ dnorm(0, 0.02),
+    b2 ~ dnorm(0, 0.05),
+    b3 ~ dnorm(0, 0.04),
+    sigma ~ dexp(1)
+  ) , data=Richardson_dat_slim_MR_df_cc, chains =1 )
+
+mgustyMR_4chains_test <- ulam(
+  alist(
+    wind_sd ~ dnorm( mu , sigma ) ,
+    mu <- a + b1 * wind_spd + b2 * t_2m + b3 * BulkRichardsonNumber,
+    a ~ dnorm(0.5, 0.5),
+    b1 ~ dnorm(0, 0.02),
+    b2 ~ dnorm(0, 0.05),
+    b3 ~ dnorm(0, 0.04),
+    sigma ~ dexp(1)
+  ) , data=Richardson_dat_slim_MR_df_cc, chains = 4, cores = 4, iter = 1000)
+
+mgustyMR4chains_test_predicteddraws <- predicted_draws(
+  mgustyMR_4chains_test,
+  Richardson_dat_slim_MR_df_cc,
+  value = ".prediction",
+  ndraws = 5)
+
+plot (wind_sd ~ .prediction , mgustyMR4chains_test_predicteddraws , col=col.alpha(rangi2,0.5),
+      xlab='Predicted Values',
+      ylab='Actual Values',
+      main='Predicted vs. Actual wind_sd values for Bayesian Model')
+
+cor(x=mgustyMR4chains_test_predicteddraws$.prediction, y=mgustyMR4chains_test_predicteddraws$wind_sd)
