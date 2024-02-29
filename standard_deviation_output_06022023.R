@@ -13,6 +13,7 @@ library(ggplot2)
 library(rethinking)
 library(ggpubr)
 library(randomForest)
+library(plyr)
 
 minute_summary <- MinuteNoArtifacts %>% 
   mutate(wind_spd = ifelse(wind_spd < 0, NA, wind_spd)) %>%
@@ -80,11 +81,12 @@ plot( wind_sd.x ~ t_2m , new_combined_cc , col=col.alpha(rangi2,0.5) )
 lines( t_2m.seq , mu.mean )
 shade( mu.PI , t_2m.seq )
 
+#Figure 1B is below
 mgusty1plot_updated <- ggplot(new_combined_cc, aes(t_2m, wind_sd.x)) +
   geom_smooth()
 mgusty1plot_updated + coord_cartesian(xlim = c(-30, 10)) +
-ggtitle("Correlation between Temperature and Wind_SD") +
-  ylab("Wind_SD") + 
+ggtitle("Relation between Temperature and Wind_SD") +
+  ylab("Wind_SD (m/s)") + 
   xlab("t_2m (°C)")
 
 gam_updated <- gam((wind_sd.x) ~ s(t_2m + t_2m^2), data = new_combined_cc)
@@ -140,15 +142,43 @@ lines( wind_spd.seq , mu.mean )
 shade( mu.PI , wind_spd.seq )
 shade( height.PI , wind_spd.seq )
 
-ggplot(new_combined_cc2, aes(wind_spd, wind_sd.x)) +
+#Figure 1A is below
+ggplot(new_combined_cc2, aes(wind_spd, wind_sd)) +
   geom_smooth() +
-ggtitle("Correlation between Wind Speed and Wind_SD") +
-  ylab("Wind_SD") + 
+ggtitle("Relation between Wind Speed and Wind_SD") +
+  ylab("Wind_SD (m/s)") + 
   xlab("Wind Speed (m/s)") +
   xlim(0,20)
 lines( wind_spd.seq , mu.mean )
 shade( mu.PI , wind_spd.seq )
 shade( height.PI , wind_spd.seq )
+
+#figuring out boxplot for 1A
+new_combined_cc2_df <- new_combined_cc2 %>% mutate(wind_spd_bin = cut(wind_spd, breaks = 20)) #bin the data to make the boxplot readable
+new_combined_cc2_df <- new_combined_cc2_df %>% mutate(t_2m_bin = cut(t_2m, breaks = 20)) #bin the data to make the boxplot readable
+                                                  
+
+Figure1Aboxplot <- ggplot(data = new_combined_cc2_df, mapping = aes(x=wind_spd_bin, y=wind_sd)) +
+  geom_jitter(aes(color='blue'), alpha=0.2) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') +
+  theme_minimal() +
+  ggtitle("Relationship Between wind_spd and wind_sd")
+Figure1Aboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) #rotate x axis values so the values are readable
+
+Figure1Bboxplot <- ggplot(data = new_combined_cc2_df, mapping = aes(x=t_2m_bin, y=wind_sd)) +
+  geom_jitter(aes(color='blue'), alpha=0.2) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='t_2m (°C)', y='wind_sd (m/s)') +
+  theme_minimal() +
+  ggtitle("Relationship Between t_2m and wind_sd")
+Figure1Bboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) #rotate x axis values so the values are readable
 
 mgusty2plot_updated <- ggplot(new_combined_cc2, aes(wind_spd, wind_sd)) +
   geom_smooth()
@@ -993,7 +1023,7 @@ MinuteNoArtifacts <- MinuteRows[-c(5136745:5137573, 5137598:5137689, 5137728:513
 
 #get slope of regression line for each monthly plot
 summary(lm(formula = Month1_combined_cc$wind_spd ~ Month1_combined_cc$year))
-summary(lm(formula = Month1_combined_cc$wind_spd ~ Month1_combined_cc$year))
+summary(lm(formula = Month12_count$n ~ Month12_count$year))
 #Plot m values for each month for gust frequency, temp, wind spd
 
 month <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
@@ -1004,7 +1034,8 @@ mean_st_dev_slope <- c(0.007056, 0.005667, 0.007224, 0.0042022, 0.005018, 0.0067
 mean_st_dev_slope_error <- c(0.0002719, 0.0002755, 0.000261, 0.0002068, 0.000198, 0.0001863, 0.0002128, 0.000248, 0.0002607, 0.0003094, 0.0003064, 0.0002893)
 wind_spd_slope_error <- c(0.003036, 0.007336, 0.00294, 0.002473, 0.002174, 0.001928, 0.002148, 0.0023891, 0.002493, 0.002944, 0.003128, 0.003136)
 temp_slope_error <-c(0.00615, 0.007286, 0.006139, 0.00576, 0.003992, 0.002591, 0.00307, 0.00299, 0.002683, 0.002429, 0.00189, 0.005753)
-slopes_df <- data.frame(month, gust_slope, temp_slope, wind_spd_slope, mean_st_dev_slope, mean_st_dev_slope_error, wind_spd_slope_error, temp_slope_error)
+gust_slope_error <- c(0.05445, 0.02459, 0.1464, 0.03356, 0.03123, 0.01801, 0.03749, 0.1454, 0.1212, 0.1047, 0.09101, 0.04984)
+slopes_df <- data.frame(month, gust_slope, temp_slope, wind_spd_slope, mean_st_dev_slope, mean_st_dev_slope_error, wind_spd_slope_error, temp_slope_error, gust_slope_error)
 
 ggplot(data=slopes_df,aes(x=month, y=wind_spd_slope)) + 
   geom_point(color="black", aes(group=1)) +
@@ -1019,7 +1050,9 @@ ggplot(data=slopes_df,aes(x=month, y=gust_slope)) +
   ggtitle("Change in Gust Frequency by Month From 1994-2022") +
   ylab("slope (change in # of occurrences of sd>2/year)") + 
   xlab("Month") +
-  xlim(0,12)
+  xlim(0,12) +
+  geom_errorbar(aes(ymax = gust_slope + gust_slope_error, ymin = gust_slope - gust_slope_error),
+                position = "dodge")
 
 #take out August 1 and see how trend changes, 08/14/2023
 year <- c(1994:2021)
@@ -1089,10 +1122,10 @@ Month12meanfit_t_2m <- lm(formula = Month12_combined_cc_summary$mean_t_2m ~ Mont
 summary(Month12meanfit_t_2m)
 
 #make monthly mean temperature plots over time
-ggplot(data=Month12_combined_cc_summary,aes(x=year, y=mean_t_2m)) +
+ggplot(data=Month9_combined_cc_summary,aes(x=year, y=mean_t_2m)) +
   geom_point(color="black", aes(group=1)) +
   geom_smooth(method=lm) +
-  ggtitle("December Mean Temperature Over Time") +
+  ggtitle("September Mean Temperature Over Time") +
   ylab("Mean Temperature (Celsius)") + 
   xlab("Year") +
   xlim (1994, 2022)
@@ -1123,3 +1156,157 @@ ggplot(data=slopes_df,aes(x=month, y=mean_st_dev_slope)) +
   xlim(0,12) +
   geom_errorbar(aes(ymax = mean_st_dev_slope + mean_st_dev_slope_error, ymin = mean_st_dev_slope - mean_st_dev_slope_error),
                 position = "dodge")
+
+#2/27/2024: create density plots for Figure 1A and 1B
+ggplot(newest_combined_cc, aes(x=wind_spd, y=wind_sd.x)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(0,25) +
+  ylim(0,5) +
+  ggtitle("Density of wind_spd and wind_sd Data") +
+  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') #1A density plot
+
+ggplot(newest_combined_cc, aes(x=t_2m, y=wind_sd.x)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(-50,23) +
+  ylim(0,5) +
+  ggtitle("Density of t_2m and wind_sd Data") +
+  labs(x='t_2m (°C)', y='wind_sd (m/s)') #1B density 
+
+#figure 1A boxplot below
+Figure1Aboxplot <- ggplot(data = new_combined_cc2_df, mapping = aes(x=wind_spd_bin, y=wind_sd)) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') +
+  theme_minimal() +
+  ggtitle("Relationship Between wind_spd and wind_sd")
+Figure1Aboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) #rotate x axis values so the values are readable
+
+#Remove N/A values from Figure 1B boxplot
+Figure1Bboxplot <- ggplot(data = subset(new_combined_cc2_df, !is.na(t_2m)), mapping = aes(x=t_2m_bin, y=wind_sd)) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='t_2m (°C)', y='wind_sd (m/s)') +
+  theme_minimal() +
+  ggtitle("Relationship Between t_2m and wind_sd")
+Figure1Bboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) 
+
+#Figure 2 (for the linear model) is below
+linear_model <- lm(wind_sd ~ wind_spd + t_2m, data = dat_slim_MR_df)
+plot(x=predict(linear_model), y=dat_slim_MR_df$wind_sd,
+     xlab='Predicted wind_sd Values (m/s)',
+     ylab='Actual wind_sd Values (m/s)',
+     xlim = c(0,2),
+     ylim = c(0,5),
+     main='Predicted vs. Actual wind_sd Values (Linear Model)')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+#Figure 2 (for the MR model) is below
+mgustyMR_predicteddraws <- predicted_draws(
+  mgustyMR_4chains,
+  dat_slim_MR_df,
+  value = ".prediction",
+  ndraws = 5)
+plot (x=mgustyMR_predicteddraws$.prediction, y=mgustyMR_predicteddraws$wind_sd,
+      xlab='Predicted wind_sd Values (m/s)',
+      ylab='Actual wind_sd Values (m/s)',
+      xlim = c(0,2),
+      ylim = c(0,5),
+      main='Predicted vs. Actual wind_sd values (MR Model)')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+#density plots for figure 2 below
+linear_predicteddraws <- data.frame(actual=dat_slim_MR_df$wind_sd, predicted = predict(linear_model))
+
+ggplot(data = linear_predicteddraws, aes(x=predicted, y=actual)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(0,2) +
+  ylim(0,5) +
+  ggtitle("Density of Linear Model Predictions") +
+  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)') #2 linear density plot
+
+ggplot(data = mgustyMR_predicteddraws, aes(x=.prediction, y=wind_sd)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(0,2) +
+  ylim(0,5) +
+  ggtitle("Density of MR Model Predictions") +
+  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)') #2 MR density plot
+
+#fix figure 3's axes labels
+ggplot(data=slopes_df, aes(x=month,y=temp_slope)) +
+  geom_point() +
+  ggtitle("Changes in Mean Temperature, 1994-2022") +
+  geom_errorbar(aes(ymax = temp_slope + temp_slope_error, ymin = temp_slope - temp_slope_error),
+                position = "dodge") +
+  labs(x='Month', y='Temperature Slope (K/year)') +
+  scale_x_discrete(limits=month.abb)
+
+#fix Figure 4's axes labels
+ggplot(data=slopes_df, aes(x=month,y=wind_spd_slope)) +
+  geom_point() +
+  ggtitle("Changes in Mean Wind Speed, 1994-2022") +
+  geom_errorbar(aes(ymax = wind_spd_slope + wind_spd_slope_error, ymin = wind_spd_slope - wind_spd_slope_error),
+                position = "dodge") +
+  labs(x='Month', y='Wind Speed Slope (m/s per year)') +
+  scale_x_discrete(limits=month.abb)
+
+#fix figure 5's axis labels
+ggplot(data=slopes_df,aes(x=month, y=gust_slope)) + 
+  geom_point(color="black", aes(group=1)) +
+  ggtitle("Change in Gust Frequency by Month From 1994-2022") +
+  ylab("slope (change in # of occurrences of sd>2/year)") + 
+  xlab("Month") +
+  xlim(0,12) +
+  geom_errorbar(aes(ymax = gust_slope + gust_slope_error, ymin = gust_slope - gust_slope_error),
+                position = "dodge") +
+  scale_x_discrete(limits=month.abb)
+
+#Fix figure 6's axes labels
+ggplot(data=slopes_df,aes(x=month, y=mean_st_dev_slope)) + 
+  geom_point(color="black", aes(group=1)) +
+  ggtitle("Changes in Mean Wind SD, 1994-2022") +
+  ylab("Rate of Change of Mean Wind_SD (m/s per year))") + 
+  xlab("Month") +
+  xlim(0,12) +
+  geom_errorbar(aes(ymax = mean_st_dev_slope + mean_st_dev_slope_error, ymin = mean_st_dev_slope - mean_st_dev_slope_error),
+                position = "dodge") +
+  scale_x_discrete(limits=month.abb)
+
+#Build a new figure 7 by plotting the slopes and standard errors of the thawcount data in one graph
+Month1_thawcount <- Month1_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month1_thawcount <- Month1_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month2_thawcount <- Month2_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month2_thawcount <- Month2_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month3_thawcount <- Month3_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month3_thawcount <- Month3_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month4_thawcount <- Month4_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month4_thawcount <- Month4_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month5_thawcount <- Month5_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month5_thawcount <- Month5_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month6_thawcount <- Month6_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month6_thawcount <- Month6_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month7_thawcount <- Month7_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month7_thawcount <- Month7_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month8_thawcount <- Month8_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month8_thawcount <- Month8_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month9_thawcount <- Month9_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month9_thawcount <- Month9_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month10_thawcount <- Month10_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month10_thawcount <- Month10_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month11_thawcount <- Month11_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month11_thawcount <- Month11_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+Month12_thawcount <- Month12_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
+Month12_thawcount <- Month12_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
