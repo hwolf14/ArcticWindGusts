@@ -85,7 +85,7 @@ shade( mu.PI , t_2m.seq )
 mgusty1plot_updated <- ggplot(new_combined_cc, aes(t_2m, wind_sd.x)) +
   geom_smooth()
 mgusty1plot_updated + coord_cartesian(xlim = c(-30, 10)) +
-ggtitle("Relation between Temperature and Wind_SD") +
+ggtitle("Relationship between Temperature and Wind_SD") +
   ylab("Wind_SD (m/s)") + 
   xlab("t_2m (°C)")
 
@@ -145,7 +145,7 @@ shade( height.PI , wind_spd.seq )
 #Figure 1A is below
 ggplot(new_combined_cc2, aes(wind_spd, wind_sd)) +
   geom_smooth() +
-ggtitle("Relation between Wind Speed and Wind_SD") +
+ggtitle("Relationship between Wind Speed and Wind_SD") +
   ylab("Wind_SD (m/s)") + 
   xlab("Wind Speed (m/s)") +
   xlim(0,20)
@@ -1118,8 +1118,10 @@ month12highfit_sd <- lm(formula = Month12_high$wind_sd.x ~ Month12_high$year)
 summary(month12highfit_sd)
 
 #regression test 09/04/2023 for wind sd and 09/15/2023 for wind spd and t_2m
-Month12meanfit_t_2m <- lm(formula = Month12_combined_cc_summary$mean_t_2m ~ Month12_combined_cc_summary$year)
-summary(Month12meanfit_t_2m)
+Month1meanfit_wind_spd <- lm(formula = Month1_combined_cc_summary$mean_wind_spd ~ Month1_combined_cc_summary$year)
+summary(Month1meanfit_wind_spd)
+
+Month1meanfit_wind_spd <- lm(formula = Month1_com)
 
 #make monthly mean temperature plots over time
 ggplot(data=Month9_combined_cc_summary,aes(x=year, y=mean_t_2m)) +
@@ -1164,7 +1166,7 @@ ggplot(newest_combined_cc, aes(x=wind_spd, y=wind_sd.x)) +
   xlim(0,25) +
   ylim(0,5) +
   ggtitle("Density of wind_spd and wind_sd Data") +
-  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') #1A density plot
+  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') #Figure 1A density plot
 
 ggplot(newest_combined_cc, aes(x=t_2m, y=wind_sd.x)) + 
   geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
@@ -1235,7 +1237,7 @@ ggplot(data = linear_predicteddraws, aes(x=predicted, y=actual)) +
   xlim(0,2) +
   ylim(0,5) +
   ggtitle("Density of Linear Model Predictions") +
-  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)') #2 linear density plot
+  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)')
 
 ggplot(data = mgustyMR_predicteddraws, aes(x=.prediction, y=wind_sd)) + 
   geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
@@ -1310,3 +1312,221 @@ Month11_thawcount <- Month11_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_t
 Month11_thawcount <- Month11_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
 Month12_thawcount <- Month12_combined_cc %>% filter(t_2m>-1.8) #rebuild month#_thawcount datasets. Isolate cases where t_2m>-1.8
 Month12_thawcount <- Month12_thawcount %>% group_by(year) %>% tally() #count the number of instances per year
+
+#Add values of 0 for years where there are no hours that exceed the thaw temperature
+Month1_thawcount <- Month1_thawcount %>% add_row (year=1994:2004, n=0)
+Month1_thawcount <- Month1_thawcount %>% add_row (year=2006:2007, n=0)
+Month1_thawcount <- Month1_thawcount %>% add_row (year=2009:2010, n=0)
+Month1_thawcount <- Month1_thawcount %>% add_row (year=2012:2016, n=0)
+Month1_thawcount <- Month1_thawcount %>% add_row (year=2018:2021, n=0)
+Month2_thawcount <- Month2_thawcount %>% add_row (year=1994:2005, n=0)
+Month2_thawcount <- Month2_thawcount %>% add_row (year=2007:2010, n=0)
+Month2_thawcount <- Month2_thawcount %>% add_row (year=2012:2014, n=0)
+Month2_thawcount <- Month2_thawcount %>% add_row (year=2016:2017, n=0)
+Month2_thawcount <- Month2_thawcount %>% add_row (year=2020:2021, n=0)
+Month3_thawcount <- Month3_thawcount %>% add_row (year=1994:1995, n=0)
+Month3_thawcount <- Month3_thawcount %>% add_row (year=1997, n=0)
+Month3_thawcount <- Month3_thawcount %>% add_row (year=1999:2018, n=0)
+Month3_thawcount <- Month3_thawcount %>% add_row (year=2021, n=0)
+Month4_thawcount <- Month4_thawcount %>% add_row (year=1994, n=0)
+Month4_thawcount <- Month4_thawcount %>% add_row (year=1996:2001, n=0)
+Month4_thawcount <- Month4_thawcount %>% add_row (year=2004:2007, n=0)
+Month4_thawcount <- Month4_thawcount %>% add_row (year=2010:2013, n=0)
+Month4_thawcount <- Month4_thawcount %>% add_row (year=2015:2017, n=0)
+Month10_thawcount <- Month10_thawcount %>% add_row (year=1994, n=0)
+Month10_thawcount <- Month10_thawcount %>% add_row (year=2001, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=1994:1995, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=1999:2001, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=2004:2005, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=2007:2009, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=2011:2012, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=2015, n=0)
+Month11_thawcount <- Month11_thawcount %>% add_row (year=2021, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=1994:1997, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=1999:2005, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=2007, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=2010:2012, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=2014:2016, n=0)
+Month12_thawcount <- Month12_thawcount %>% add_row (year=2018:2020, n=0)
+
+#obtain slopes and standard error values for each "Month#_thawcount" dataset
+summary(lm(formula = Month1_thawcount$n ~ Month1_thawcount$year)) #slope= 0.1297 std. error= 0.1068
+summary(lm(formula = Month2_thawcount$n ~ Month2_thawcount$year)) #slope= 0.09524 std. error= 0.05757
+summary(lm(formula = Month3_thawcount$n ~ Month3_thawcount$year)) #slope= 0.07115 std. error= 0.06436
+summary(lm(formula = Month4_thawcount$n ~ Month4_thawcount$year)) #slope= -0.1702 std. error= 0.4414
+summary(lm(formula = Month5_thawcount$n ~ Month5_thawcount$year)) #slope= 3.415 std. error= 2.523
+summary(lm(formula = Month6_thawcount$n ~ Month6_thawcount$year)) #slope= -0.6286 std. error= 1.8171
+summary(lm(formula = Month7_thawcount$n ~ Month7_thawcount$year)) #slope= -4.045 std. error= 3.308
+summary(lm(formula = Month8_thawcount$n ~ Month8_thawcount$year)) #slope= 1.719 std. error= 1.625
+summary(lm(formula = Month9_thawcount$n ~ Month9_thawcount$year)) #slope= 6.397 std. error= 2.603
+summary(lm(formula = Month10_thawcount$n ~ Month10_thawcount$year)) #slope= 9.056 std. error= 2.476
+summary(lm(formula = Month11_thawcount$n ~ Month11_thawcount$year)) #slope= 1.2556 std. error= 0.4816
+summary(lm(formula = Month12_thawcount$n ~ Month12_thawcount$year)) #slope= 0.05720 std. error= 0.06336
+
+#create values for thawcount slope and thawcount standard error, then put these values into slopes_df
+thawcount_slope <- c(0.1297, 0.09524, 0.07115, -0.1702, 3.415, -0.6286, -4.045, 1.719, 6.397, 9.056, 1.2556, 0.05720)
+thawcount_slope_error <- c(0.1068, 0.05757, 0.06436, 0.4414, 2.523, 1.8171, 3.308, 1.625, 2.603, 2.476, 0.4816, 0.06336)
+slopes_df <- data.frame(month, gust_slope, temp_slope, wind_spd_slope, mean_st_dev_slope, mean_st_dev_slope_error, wind_spd_slope_error, temp_slope_error, gust_slope_error, thawcount_slope, thawcount_slope_error)
+
+#plot a new Figure 7
+ggplot(data=slopes_df,aes(x=month, y=thawcount_slope)) + 
+  geom_point(color="black", aes(group=1)) +
+  ggtitle("Changes in Frequency of Thaw Conditions, 1994-2022") +
+  ylab("Rate of Change of thaw conditions (# of hours/year))") + 
+  xlab("Month") +
+  xlim(0,12) +
+  geom_errorbar(aes(ymax = thawcount_slope + thawcount_slope_error, ymin = thawcount_slope - thawcount_slope_error),
+                position = "dodge") +
+  scale_x_discrete(limits=month.abb)
+
+#Figure for January on thesis powerpoint
+ggplot(data = Month1_combined_cc, aes(x=date, y=t_2m)) +
+  geom_point() +
+  ggtitle("Temperature Measurements (°C) in January By Year") +
+  ylab("t_2m (°C)") +
+  xlab("Date")
+
+#Rework Figure 2 "predicted vs. actual values" plots in a square with a 1:1 line
+linear_model <- lm(wind_sd ~ wind_spd + t_2m, data = dat_slim_MR_df)
+par(pty="s")
+plot(x=predict(linear_model), y=dat_slim_MR_df$wind_sd,
+     xlab='Predicted wind_sd Values (m/s)',
+     ylab='Actual wind_sd Values (m/s)',
+     xlim = c(0,5),
+     ylim = c(0,5),
+     main='Predicted vs. Actual wind_sd Values (Linear Model)')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+par(pty="s")
+plot (x=mgustyMR_predicteddraws$.prediction, y=mgustyMR_predicteddraws$wind_sd,
+      xlab='Predicted wind_sd Values (m/s)',
+      ylab='Actual wind_sd Values (m/s)',
+      xlim = c(0,5),
+      ylim = c(0,5),
+      main='Predicted vs. Actual wind_sd values (MR Model)')
+abline(a = 0,
+       b = 1,
+       col = "red",
+       lwd = 2)
+
+#plot Figure 2's density plots in a square as well
+ggplot(data = linear_predicteddraws, aes(x=predicted, y=actual)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(0,5) +
+  ylim(0,5) +
+  ggtitle("Density of Linear Model Predictions") +
+  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)')
+
+ggplot(data = mgustyMR_predicteddraws, aes(x=.prediction, y=wind_sd)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  xlim(0,5) +
+  ylim(0,5) +
+  ggtitle("Density of MR Model Predictions") +
+  labs(x='Predicted wind_sd (m/s)', y='Actual wind_sd (m/s)') #2 MR density plot
+
+#Figure 2: replace scatter plots with box plots similar to what I have in Figure 1
+
+#MR boxplot
+mgustyMR_predicteddraws_df <- subset(mgustyMR_predicteddraws, .prediction > 0)
+mgustyMR_predicteddraws_df <- mgustyMR_predicteddraws_df %>% mutate(prediction_bin = cut(.prediction, breaks = 20)) #bin the data to make the boxplot readable
+mgustyMR_predicteddraws_df <- mgustyMR_predicteddraws_df %>% mutate(wind_sd_bin = cut(wind_sd, breaks = 20)) #bin the data to make the boxplot readable
+
+Figure2MRboxplot <- ggplot(data = mgustyMR_predicteddraws_df, mapping = aes(x=prediction_bin, y=wind_sd)) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='Predicted wind_sd Values (m/s)', y='Actual wind_sd Values (m/s)') +
+  theme_minimal() +
+  ggtitle("Predicted vs. Actual wind_sd Values (MR Model)")
+Figure2MRboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) #rotate x axis values so the values are readable
+
+#Linear boxplot
+linear_predicteddraws_df <- linear_predicteddraws %>% mutate(prediction_bin = cut(predicted, breaks = 20)) #bin the data to make the boxplot readable
+linear_predicteddraws_df <- linear_predicteddraws_df %>% mutate(wind_sd_bin = cut(actual, breaks = 20)) #bin the data to make the boxplot readable
+
+Figure2Linearboxplot <- ggplot(data = linear_predicteddraws_df, mapping = aes(x=prediction_bin, y=actual)) +
+  geom_boxplot(fill="bisque", color="black", alpha=0.3) +
+  labs(x='Predicted wind_sd Values (m/s)', y='Actual wind_sd Values (m/s)') +
+  theme_minimal() +
+  ggtitle("Predicted vs. Actual wind_sd Values (Linear Model)")
+Figure2Linearboxplot +
+  theme(axis.text.x = element_text(
+    angle = 90
+  )) #rotate x axis values so the values are readable
+
+#Figure 1: take density plot and try to overlay blue line
+ggplot(newest_combined_cc, aes(x=wind_spd, y=wind_sd.x)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  geom_smooth() +
+  xlim(0,25) +
+  ylim(0,5) +
+  ggtitle("Density of wind_spd and wind_sd Data") +
+  labs(x='wind_spd (m/s)', y='wind_sd (m/s)') #Figure 1A density plot
+
+ggplot(newest_combined_cc, aes(x=t_2m, y=wind_sd.x)) + 
+  geom_bin2d(bins = c(30,30), mapping = aes(fill = log(..ndensity..))) +
+  scale_fill_viridis_c(option = "B") +
+  geom_smooth() +
+  xlim(-50,23) +
+  ylim(0,5) +
+  ggtitle("Density of t_2m and wind_sd Data") +
+  labs(x='t_2m (°C)', y='wind_sd (m/s)') #1B density
+
+#double-check regression test for gust frequency
+Month1meanfit_gust <- lm(formula = Month1_count$n ~ Month1_count$year)
+summary(Month1meanfit_gust)
+Month2meanfit_gust <- lm(formula = Month2_count$n ~ Month2_count$year)
+summary(Month2meanfit_gust)
+Month3meanfit_gust <- lm(formula = Month3_count$n ~ Month3_count$year)
+summary(Month3meanfit_gust)
+Month4meanfit_gust <- lm(formula = Month4_count$n ~ Month4_count$year)
+summary(Month4meanfit_gust)
+Month5meanfit_gust <- lm(formula = Month5_count$n ~ Month5_count$year)
+summary(Month5meanfit_gust)
+Month6meanfit_gust <- lm(formula = Month6_count$n ~ Month6_count$year)
+summary(Month6meanfit_gust)
+Month7meanfit_gust <- lm(formula = Month7_count$n ~ Month7_count$year)
+summary(Month7meanfit_gust)
+Month8meanfit_gust <- lm(formula = Month8_count$n ~ Month8_count$year)
+summary(Month8meanfit_gust)
+Month9meanfit_gust <- lm(formula = Month9_count$n ~ Month9_count$year)
+summary(Month9meanfit_gust)
+Month10meanfit_gust <- lm(formula = Month10_count$n ~ Month10_count$year)
+summary(Month10meanfit_gust)
+Month11meanfit_gust <- lm(formula = Month11_count$n ~ Month11_count$year)
+summary(Month11meanfit_gust)
+Month12meanfit_gust <- lm(formula = Month12_count$n ~ Month12_count$year)
+summary(Month12meanfit_gust)
+
+#perform significance test for thawcount as well
+Month1meanfit_thaw <- lm(formula = Month1_thawcount$n ~ Month1_thawcount$year)
+summary(Month1meanfit_thaw)
+Month2meanfit_thaw <- lm(formula = Month2_thawcount$n ~ Month2_thawcount$year)
+summary(Month2meanfit_thaw)
+Month3meanfit_thaw <- lm(formula = Month3_thawcount$n ~ Month3_thawcount$year)
+summary(Month3meanfit_thaw)
+Month4meanfit_thaw <- lm(formula = Month4_thawcount$n ~ Month4_thawcount$year)
+summary(Month4meanfit_thaw)
+Month5meanfit_thaw <- lm(formula = Month5_thawcount$n ~ Month5_thawcount$year)
+summary(Month5meanfit_thaw)
+Month6meanfit_thaw <- lm(formula = Month6_thawcount$n ~ Month6_thawcount$year)
+summary(Month6meanfit_thaw)
+Month7meanfit_thaw <- lm(formula = Month7_thawcount$n ~ Month7_thawcount$year)
+summary(Month7meanfit_thaw)
+Month8meanfit_thaw <- lm(formula = Month8_thawcount$n ~ Month8_thawcount$year)
+summary(Month8meanfit_thaw)
+Month9meanfit_thaw <- lm(formula = Month9_thawcount$n ~ Month9_thawcount$year)
+summary(Month9meanfit_thaw)
+Month10meanfit_thaw <- lm(formula = Month10_thawcount$n ~ Month10_thawcount$year)
+summary(Month10meanfit_thaw)
+Month11meanfit_thaw <- lm(formula = Month11_thawcount$n ~ Month11_thawcount$year)
+summary(Month11meanfit_thaw)
+Month12meanfit_thaw <- lm(formula = Month12_thawcount$n ~ Month12_thawcount$year)
+summary(Month12meanfit_thaw)
